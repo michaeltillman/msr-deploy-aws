@@ -122,11 +122,27 @@ SCANNER="$("${CURL[@]}" "${AUTH[@]}" "$BASE/api/v2.0/scanners" \
 # --- 7. Web UI -------------------------------------------------------------------
 log "Web UI"
 UI="$("${CURL[@]}" -o /dev/null -w '%{http_code}' "$BASE/")"
-BODY="$("${CURL[@]}" "$BASE/" | head -c 2000)"
-if [[ "$UI" == "200" ]] && grep -qi 'harbor\|<app-root' <<<"$BODY"; then
-  ok "portal serves the UI (HTTP $UI)"
+TITLE="$("${CURL[@]}" "$BASE/" | grep -o '<title>[^<]*</title>' || true)"
+if [[ "$UI" == "200" && "$TITLE" == *"Mirantis Secure Registry"* ]]; then
+  ok "portal serves the UI (HTTP $UI, $TITLE)"
 else
-  bad "UI check: HTTP $UI"
+  bad "UI check: HTTP $UI $TITLE"
+fi
+
+# UI session login — the same CSRF-token flow the browser login form uses
+JAR="$(mktemp)"
+CSRF="$("${CURL[@]}" -c "$JAR" -D - -o /dev/null "$BASE/c/login" \
+  | awk 'tolower($1)=="x-harbor-csrf-token:"{print $2}' | tr -d '\r')"
+CODE="$("${CURL[@]}" -b "$JAR" -c "$JAR" -H "X-Harbor-CSRF-Token: $CSRF" \
+  -o /dev/null -w '%{http_code}' -X POST "$BASE/c/login" \
+  --data-urlencode "principal=$MSR_ADMIN_USER" \
+  --data-urlencode "password=$MSR_ADMIN_PASSWORD")"
+WHOAMI="$("${CURL[@]}" -b "$JAR" "$BASE/api/v2.0/users/current" | jq -r '.username // empty')"
+rm -f "$JAR"
+if [[ "$CODE" == "200" && "$WHOAMI" == "$MSR_ADMIN_USER" ]]; then
+  ok "UI session login works (logged in as $WHOAMI)"
+else
+  bad "UI session login: HTTP $CODE, user='$WHOAMI'"
 fi
 
 # --- Summary ---------------------------------------------------------------------
