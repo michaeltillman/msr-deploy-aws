@@ -50,7 +50,7 @@ fi
 
 # --- 2. System info ------------------------------------------------------------
 log "System info"
-SYSINFO="$("${CURL[@]}" "$BASE/api/v2.0/systeminfo")"
+SYSINFO="$("${CURL[@]}" "${AUTH[@]}" "$BASE/api/v2.0/systeminfo")"
 HARBOR_VERSION="$(jq -r '.harbor_version // empty' <<<"$SYSINFO")"
 [[ -n "$HARBOR_VERSION" ]] && ok "reachable, version: $HARBOR_VERSION" || bad "no harbor_version in systeminfo: $SYSINFO"
 
@@ -82,8 +82,9 @@ if [[ -n "$TOKEN" ]]; then
   CONFIG_DIGEST="sha256:$(printf '%s' "$CONFIG" | sha256)"
   CONFIG_SIZE="$(printf '%s' "$CONFIG" | wc -c | tr -d ' ')"
 
-  UPLOAD_URL="$("${CURL[@]}" "${BEARER[@]}" -X POST -o /dev/null -w '%{header_location}' \
-    "$BASE/v2/$PROJECT/$REPO/blobs/uploads/")"
+  UPLOAD_URL="$("${CURL[@]}" "${BEARER[@]}" -X POST -D - -o /dev/null \
+    "$BASE/v2/$PROJECT/$REPO/blobs/uploads/" \
+    | awk 'tolower($1)=="location:" {print $2}' | tr -d '\r')"
   [[ "$UPLOAD_URL" != /* ]] || UPLOAD_URL="$BASE$UPLOAD_URL"
   SEP='?'; [[ "$UPLOAD_URL" == *\?* ]] && SEP='&'
   CODE="$("${CURL[@]}" "${BEARER[@]}" -o /dev/null -w '%{http_code}' \
