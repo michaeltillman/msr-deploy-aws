@@ -9,6 +9,15 @@ curl -sSLf https://get.k0s.sh | K0S_VERSION="${k0s_version}" sh
 k0s install controller --single
 k0s start
 
+# k0s embeds kubectl but ships no standalone binary; give every user a wrapper.
+cat > /usr/local/bin/kubectl <<'WRAP'
+#!/bin/sh
+export KUBECONFIG="$${KUBECONFIG:-$HOME/.kube/config}"
+exec k0s kubectl "$@"
+WRAP
+chmod 0755 /usr/local/bin/kubectl
+mkdir -p /root/.kube
+
 kubectl() { k0s kubectl "$@"; }
 
 for i in $(seq 1 60); do
@@ -24,10 +33,11 @@ kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-c
 # --- helm (MSR installs from oci://registry.mirantis.com/harbor/helm/msr) ---
 curl -sSLf https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# --- kubeconfig for the ubuntu user (deploy.sh runs helm/kubectl over SSH) ---
+# --- kubeconfig for the ubuntu and root users (deploy.sh runs helm/kubectl over SSH) ---
 mkdir -p /home/ubuntu/.kube
 k0s kubeconfig admin > /home/ubuntu/.kube/config
+cp /home/ubuntu/.kube/config /root/.kube/config
 chown -R ubuntu:ubuntu /home/ubuntu/.kube
-chmod 0600 /home/ubuntu/.kube/config
+chmod 0600 /home/ubuntu/.kube/config /root/.kube/config
 
 touch /home/ubuntu/.bootstrap-complete
