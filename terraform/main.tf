@@ -131,6 +131,9 @@ resource "aws_instance" "msr" {
     k0s_version = var.k0s_version
   })
 
+  # cloud-init only runs on first boot; a changed bootstrap script needs a fresh node.
+  user_data_replace_on_change = true
+
   tags = { Name = "${var.name_prefix}-node" }
 }
 
