@@ -53,6 +53,9 @@ EXTERNAL_IP="$(terraform -chdir="$TF_DIR" output -raw public_ip)"
 MSR_URL="https://$EXTERNAL_IP:$HTTPS_NODEPORT"
 log "Node public IP: $EXTERNAL_IP"
 
+# Terraform may have replaced the node (new host key, same EIP); drop any stale pin.
+ssh-keygen -R "$EXTERNAL_IP" -f "$DEPLOY_DIR/known_hosts" >/dev/null 2>&1 || true
+
 SSH_OPTS=(-i "$SSH_KEY" -o StrictHostKeyChecking=accept-new
           -o UserKnownHostsFile="$DEPLOY_DIR/known_hosts" -o ConnectTimeout=10)
 node_ssh() { ssh "${SSH_OPTS[@]}" "ubuntu@$EXTERNAL_IP" "$@"; }
