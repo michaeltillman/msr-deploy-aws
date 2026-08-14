@@ -30,6 +30,10 @@ if ! aws sts get-caller-identity >/dev/null 2>&1; then
 fi
 aws sts get-caller-identity --query Arn --output text
 
+# Terraform's AWS SDK cannot read `aws login` browser-session credentials directly;
+# export them as ephemeral environment variables for this process only.
+eval "$(aws configure export-credentials --format env)"
+
 mkdir -p "$DEPLOY_DIR" "$KEY_DIR"
 
 # --- SSH key (generated locally, never committed) ----------------------------

@@ -11,6 +11,9 @@ if ! aws sts get-caller-identity >/dev/null 2>&1; then
   exit 1
 fi
 
+# Terraform's AWS SDK cannot read `aws login` browser-session credentials directly.
+eval "$(aws configure export-credentials --format env)"
+
 terraform -chdir="$TF_DIR" destroy -input=false -auto-approve \
   -var "ssh_public_key_path=$SSH_KEY.pub"
 
