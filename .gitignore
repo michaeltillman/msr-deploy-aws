@@ -1,0 +1,30 @@
+# --- Never commit secrets or deployment state (public repo) ---
+
+# Terraform state, plans, vars, providers
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+
+# Locally generated SSH keys
+keys/
+*.pem
+id_*
+
+# Locally generated deployment credentials/outputs
+.deploy/
+*.local
+kubeconfig*
+msr-credentials*
+admin-password*
+
+# TLS material
+*.crt
+*.key
+*.csr
+
+# OS / editor noise
+.DS_Store

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Cloud-init: prepare a single-node k0s cluster ready for the MSR Helm install.
+set -euxo pipefail
+
+exec > /var/log/msr-bootstrap.log 2>&1
+
+# --- k0s single node (controller+worker) ---
+curl -sSLf https://get.k0s.sh | K0S_VERSION="${k0s_version}" sh
+k0s install controller --single
+k0s start
+
+kubectl() { k0s kubectl "$@"; }
+
+for i in $(seq 1 60); do
+  kubectl get nodes 2>/dev/null | grep -q ' Ready' && break
+  sleep 5
+done
+kubectl get nodes
+
+# --- default StorageClass (k0s ships no provisioner; MSR needs 5 PVCs) ---
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.31/deploy/local-path-storage.yaml
+kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --overwrite
+
+# --- helm (MSR installs from oci://registry.mirantis.com/harbor/helm/msr) ---
+curl -sSLf https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# --- kubeconfig for the ubuntu user (deploy.sh runs helm/kubectl over SSH) ---
+mkdir -p /home/ubuntu/.kube
+k0s kubeconfig admin > /home/ubuntu/.kube/config
+chown -R ubuntu:ubuntu /home/ubuntu/.kube
+chmod 0600 /home/ubuntu/.kube/config
+
+touch /home/ubuntu/.bootstrap-complete
