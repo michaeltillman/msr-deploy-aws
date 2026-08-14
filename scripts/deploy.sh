@@ -75,9 +75,9 @@ node_ssh 'kubectl get nodes'
 CREDS_FILE="$DEPLOY_DIR/msr-credentials.env"
 if [[ ! -f "$CREDS_FILE" ]]; then
   log "Generating MSR admin password and secretKey"
-  ADMIN_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+  ADMIN_PASSWORD="$(openssl rand -hex 12)"
   # secretKey must be exactly 16 characters and NEVER change after first deploy
-  SECRET_KEY="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)"
+  SECRET_KEY="$(openssl rand -hex 8)"
   cat > "$CREDS_FILE" <<EOF
 MSR_URL=$MSR_URL
 MSR_ADMIN_USER=admin
