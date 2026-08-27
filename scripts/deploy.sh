@@ -73,21 +73,24 @@ node_ssh 'kubectl get nodes'
 
 # --- Generate MSR credentials (locally, gitignored) ---------------------------
 CREDS_FILE="$DEPLOY_DIR/msr-credentials.env"
-if [[ ! -f "$CREDS_FILE" ]]; then
+if [[ -f "$CREDS_FILE" ]]; then
+  # Reuse existing credentials (secretKey must never change for a given data set)
+  # shellcheck disable=SC1090
+  source "$CREDS_FILE"
+else
   log "Generating MSR admin password and secretKey"
-  ADMIN_PASSWORD="$(openssl rand -hex 12)"
+  MSR_ADMIN_PASSWORD="$(openssl rand -hex 12)"
   # secretKey must be exactly 16 characters and NEVER change after first deploy
-  SECRET_KEY="$(openssl rand -hex 8)"
-  cat > "$CREDS_FILE" <<EOF
+  MSR_SECRET_KEY="$(openssl rand -hex 8)"
+fi
+# Rewrite every run: the Elastic IP changes when the stack is destroyed/recreated.
+cat > "$CREDS_FILE" <<EOF
 MSR_URL=$MSR_URL
 MSR_ADMIN_USER=admin
-MSR_ADMIN_PASSWORD=$ADMIN_PASSWORD
-MSR_SECRET_KEY=$SECRET_KEY
+MSR_ADMIN_PASSWORD=$MSR_ADMIN_PASSWORD
+MSR_SECRET_KEY=$MSR_SECRET_KEY
 EOF
-  chmod 0600 "$CREDS_FILE"
-fi
-# shellcheck disable=SC1090
-source "$CREDS_FILE"
+chmod 0600 "$CREDS_FILE"
 
 # --- Render Helm values -------------------------------------------------------
 log "Rendering Helm values"
